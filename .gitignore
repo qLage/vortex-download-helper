@@ -1,0 +1,9 @@
+*.log
+*.zip
+*.7z
+*.exe
+*.dll
+.env
+.env.*
+Thumbs.db
+.DS_Store

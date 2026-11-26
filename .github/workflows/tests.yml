@@ -1,0 +1,12 @@
+name: Tests
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  powershell:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Identity, debounce, deduplication and parser checks
+        shell: powershell
+        run: ./tests/Test-Helper.ps1
