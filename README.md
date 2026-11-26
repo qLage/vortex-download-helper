@@ -91,7 +91,7 @@ The Workflow section shows Vortex → dialog check → click and includes the ch
 1. Open Vortex and start a collection download.
 2. Optionally select `Vortex.exe`; otherwise the single running Vortex window is detected.
 3. Check without clicking reads the dialog without invoking it.
-4. Once the helper recognizes the current mod dialog, select **Start**. Pause, resume and stop are available in the same window.
+4. Once the helper recognizes the current mod dialog, select **Start helper**. Pause, resume and stop are available in the same window.
 
 F8 stops; F9 toggles pause. Closing the window stops only the owned helper process, leaving Vortex running. Switching language also translates the activity log. Dark and light themes are available. The interface shows the current mod, collection position, click count and the latest 200 events.
 
