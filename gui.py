@@ -65,6 +65,8 @@ class HelperApp(DesktopApp):
         self.progress_value = '—'
         self.mod = ''
         self.activity = []
+        self.event_sequence = 0
+        self.resolved_path = ''
         self.demo = False
         super().__init__(root, 'VortexDownloadHelper', WORDS, storage, purple=True)
         self.vortex_path = self.settings.get('vortex_path', '')
@@ -77,9 +79,8 @@ class HelperApp(DesktopApp):
             return
         if self.nav == 0:
             hero=card(parent,self.p,padx=22,pady=14); hero.pack(fill='x',pady=(0,16))
-            status=label(hero,'●  '+self.t(self.state_key),self.p,14,True)
-            status.configure(fg=self.p['red'] if self.state_key == 'failed' else self.p['accent'])
-            status.pack(anchor='w')
+            self.status_label=label(hero,'',self.p,14,True)
+            self.status_label.pack(anchor='w')
             label(hero,self.t('intro'),self.p,10,muted=True).pack(anchor='w',pady=(8,12))
             controls=tk.Frame(hero,bg=self.p['card']); controls.pack(fill='x')
             self.start_button=button(controls,self.t('start'),lambda:self.start(False),self.p,True)
@@ -88,19 +89,20 @@ class HelperApp(DesktopApp):
             self.pause_button.configure(state='normal' if self.busy and self.state_key != 'checking' else 'disabled'); self.pause_button.pack(side='left',padx=10)
             self.stop_button=button(controls,self.t('stop'),self.cancel,self.p)
             self.stop_button.configure(state='normal' if self.busy else 'disabled'); self.stop_button.pack(side='left')
-            check=button(controls,self.t('check'),lambda:self.start(True),self.p)
-            check.configure(state='disabled' if self.busy else 'normal'); check.pack(side='right')
+            self.check_button=button(controls,self.t('check'),lambda:self.start(True),self.p)
+            self.check_button.pack(side='right')
             pathrow=tk.Frame(hero,bg=self.p['card']); pathrow.pack(fill='x',pady=(12,0))
             label(pathrow,self.t('target'),self.p,9,muted=True).pack(side='left')
-            choose=button(pathrow,self.t('browse'),self.browse,self.p)
-            choose.configure(state='disabled' if self.busy else 'normal',pady=5); choose.pack(side='right')
+            self.choose_button=button(pathrow,self.t('browse'),self.browse,self.p)
+            self.choose_button.configure(pady=5); self.choose_button.pack(side='right')
             self.path_label=label(pathrow,self.vortex_path or self.t('automatic'),self.p,9,muted=True,wraplength=450)
             self.path_label.pack(side='right',padx=12)
-            self.metrics(parent,[(self.t('clicks'),self.count,self.t('clicks_hint')),
+            self.metric_labels=self.metrics(parent,[(self.t('clicks'),self.count,self.t('clicks_hint')),
                                  (self.t('progress'),self.progress_value,self.t('progress_hint'))])
             current=card(parent,self.p,padx=18,pady=10); current.pack(fill='x',pady=(0,16))
             label(current,self.t('current'),self.p,9,muted=True).pack(anchor='w')
-            label(current,self.mod or self.t('current_hint'),self.p,12,True,wraplength=810).pack(anchor='w',pady=(5,0))
+            self.mod_label=label(current,'',self.p,12,True,wraplength=740)
+            self.mod_label.pack(anchor='w',pady=(5,0))
         foot=self.t('demo') if self.demo else self.t('quiet')
         label(parent,foot,self.p,9,muted=True,wraplength=850).pack(side='bottom',anchor='w',pady=(13,0))
         panel=card(parent,self.p); panel.pack(fill='both',expand=True)
@@ -108,7 +110,10 @@ class HelperApp(DesktopApp):
         self.details=text_area(panel,self.p,height=2 if self.nav==0 else 5)
         self.tree=self.table(panel,[('time',self.t('time'),90),('event',self.t('event'),700)],heights=2 if self.nav==0 else 13)
         self.tree.bind('<<TreeviewSelect>>',self.select_activity)
-        self.refresh_activity()
+        for event in reversed(self.activity):
+            self.tree.insert('', 'end', iid=event['id'], values=(event['local_time'], self.event_text(event)))
+        self.update_controls()
+        self.select_activity()
 
     def render_guide(self,parent):
         p=self.p
@@ -130,10 +135,11 @@ class HelperApp(DesktopApp):
             label(row,str(index+1).zfill(2),p,12,True,muted=True).pack(side='left',padx=(0,18))
             label(row,self.t(key),p,11,wraplength=680).pack(side='left')
         controls=tk.Frame(panel,bg=p['card']);controls.pack(fill='x',pady=(18,0))
-        check=button(controls,self.t('check'),lambda:self.start(True),p,True)
-        check.configure(state='disabled' if self.busy else 'normal');check.pack(side='left')
-        if self.activity:
-            label(panel,self.event_text(self.activity[-1]),p,10,muted=True,wraplength=740).pack(anchor='w',pady=(18,0))
+        self.check_button=button(controls,self.t('check'),lambda:self.start(True),p,True)
+        self.check_button.pack(side='left')
+        self.guide_status=label(panel,'',p,10,muted=True,wraplength=740)
+        self.guide_status.pack(anchor='w',pady=(18,0))
+        self.update_controls()
         label(parent,self.t('guide_note'),p,10,muted=True,wraplength=840).pack(anchor='w',pady=20)
         shortcuts=card(parent,p,padx=20,pady=16);shortcuts.pack(fill='x')
         label(shortcuts,self.t('quiet'),p,11,True).pack(anchor='w')
@@ -141,7 +147,11 @@ class HelperApp(DesktopApp):
     def browse(self):
         selected=filedialog.askopenfilename(parent=self.root,title=self.t('choose'),filetypes=[('Vortex','Vortex.exe')])
         if selected:
-            self.vortex_path=selected; self.settings['vortex_path']=selected; self.save_settings(); self.render()
+            self.vortex_path=selected
+            self.resolved_path=''
+            self.settings['vortex_path']=selected
+            self.save_settings()
+            self.update_controls()
 
     def start(self, check_only=False):
         if self.busy:
@@ -150,7 +160,8 @@ class HelperApp(DesktopApp):
         if not check_only:
             self.count=0; self.progress_value='—'; self.mod=''
         self.session=self.session_factory(self.events.put, language=self.language, vortex_path=self.vortex_path, check_only=check_only)
-        self.render(); self.session.start()
+        self.update_controls()
+        self.session.start()
 
     def pause(self):
         if self.session and self.busy:
@@ -167,23 +178,41 @@ class HelperApp(DesktopApp):
              'timeout':'timeout','error':'error'}.get(kind)
         return self.t(key,**data) if key else kind
 
-    def refresh_activity(self):
-        if not hasattr(self,'tree') or not self.tree.winfo_exists():
-            return
-        self.tree.delete(*self.tree.get_children())
-        for index,event in enumerate(reversed(self.activity)):
-            self.tree.insert('','end',iid=str(index),values=(event['local_time'],self.event_text(event)))
-        put_text(self.details,self.event_text(self.activity[-1]) if self.activity else self.t('none'))
+    def update_controls(self):
+        ready = 'disabled' if self.busy else 'normal'
+        latest = self.event_text(self.activity[-1]) if self.activity else self.t('none')
+        if self.nav == 2:
+            self.check_button.configure(state=ready)
+            self.guide_status.configure(text=latest)
+        elif self.nav == 0:
+            self.status_label.configure(text='●  '+self.t(self.state_key),
+                fg=self.p['red'] if self.state_key == 'failed' else self.p['accent'])
+            self.start_button.configure(state=ready)
+            self.check_button.configure(state=ready)
+            self.choose_button.configure(state=ready)
+            can_pause = self.busy and self.state_key in ('running','paused')
+            self.pause_button.configure(text=self.t('resume' if self.state_key=='paused' else 'pause'),
+                                        state='normal' if can_pause else 'disabled')
+            self.stop_button.configure(state='normal' if self.busy else 'disabled')
+            self.path_label.configure(text=self.vortex_path or self.resolved_path or self.t('automatic'))
+            self.metric_labels[0].configure(text=str(self.count))
+            self.metric_labels[1].configure(text=self.progress_value)
+            self.mod_label.configure(text=self.mod or self.t('current_hint'))
 
     def select_activity(self,_=None):
-        if self.tree.selection():
-            event=list(reversed(self.activity))[int(self.tree.selection()[0])]
-            put_text(self.details,self.event_text(event))
+        selected = self.tree.selection()
+        event = next((event for event in self.activity if selected and event['id'] == selected[0]), None)
+        if event is None and self.activity:
+            event = self.activity[-1]
+        put_text(self.details, self.event_text(event) if event else self.t('none'))
 
     def handle_event(self,event):
         kind=event['type']; data=event.get('data') or {}
-        event=dict(event,local_time=datetime.now().strftime('%H:%M:%S'))
-        self.activity.append(event); self.activity=self.activity[-200:]
+        if kind != 'ended':
+            self.event_sequence += 1
+            event = dict(event, id=str(self.event_sequence), local_time=datetime.now().strftime('%H:%M:%S'))
+            self.activity.append(event)
+            expired = self.activity.pop(0) if len(self.activity) > 200 else None
         if kind in ('clicked','detected'):
             self.mod=str(data.get('mod','')); self.progress_value=str(data.get('progress','—'))
             if kind=='clicked': self.count=int(data.get('count',self.count))
@@ -191,7 +220,7 @@ class HelperApp(DesktopApp):
             self.state_key=kind
         elif kind=='error' or kind=='duplicate':
             self.state_key='failed'
-        elif kind in ('stopped','timeout'):
+        elif kind in ('stopped','timeout') and self.state_key != 'failed':
             self.state_key='stopped'
         elif kind=='ended':
             self.busy=False
@@ -200,10 +229,24 @@ class HelperApp(DesktopApp):
             self.state_key='idle'
         if kind=='target':
             self.resolved_path=data.get('path','')
-        self.render()
+        self.update_controls()
+        if self.nav != 2 and kind != 'ended':
+            position = self.tree.yview()[0]
+            rows = self.tree.get_children()
+            first_visible = rows[min(round(position * len(rows)), len(rows) - 1)] if position and rows else None
+            self.tree.insert('', 0, iid=event['id'], values=(event['local_time'], self.event_text(event)))
+            if expired:
+                self.tree.delete(expired['id'])
+            if position == 0:
+                self.tree.yview_moveto(0)
+            elif first_visible and self.tree.exists(first_visible):
+                self.tree.yview_moveto(self.tree.index(first_visible)/len(self.activity))
+            if not self.tree.selection():
+                self.select_activity()
 
     def close(self):
         self.closed=True
+        self.root.withdraw()
         if self.session:
             self.session.stop(wait=True)
         self.root.destroy()
@@ -233,11 +276,12 @@ def self_test(artifacts):
                 assert len(app.flow_diagram.find_all())>=14
                 capture_window(root,artifacts/'vortex-workflow.png')
         root.geometry('1000x740');root.update()
-        for widget in (app.start_button,app.details,app.language_box,app.theme_button):
+        for widget in (app.start_button,app.details,app.language_switch,app.theme_button):
             assert widget.winfo_ismapped()
             assert widget.winfo_rooty()+widget.winfo_height()<=root.winfo_rooty()+root.winfo_height()
-        app.language_box.set('Русский');app.language_box.event_generate('<<ComboboxSelected>>');root.update()
+        app.language_buttons['ru'].invoke();root.update()
         assert app.language=='ru'
+        assert app.language_buttons['ru'].primary and not app.language_buttons['en'].primary
         old=app.theme;app.theme_button.invoke();root.update();assert app.theme!=old
         class FakeSession:
             def __init__(self,notify,**kwargs):self.notify=notify
@@ -249,6 +293,13 @@ def self_test(artifacts):
             root.update()
         app.session_factory=FakeSession;app.busy=False;app.render()
         app.start_button.invoke();flush();assert app.busy and app.state_key=='running'
+        tree, start_button = app.tree, app.start_button
+        selected = tree.get_children()[0]
+        tree.selection_set(selected)
+        for _ in range(30):
+            app.handle_event(dict(type='waiting',data={}))
+        root.update()
+        assert app.tree is tree and app.start_button is start_button and tree.selection() == (selected,)
         app.pause_button.invoke();flush();assert app.state_key=='paused'
         app.pause_button.invoke();flush();assert app.state_key=='running'
         app.stop_button.invoke();flush();assert not app.busy and app.state_key=='stopped'

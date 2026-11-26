@@ -2,7 +2,9 @@
 
 ## Русский
 
-Версия 0.2.1 проверена из исходников и как portable EXE: русский/английский, тёмная/светлая тема, минимальный размер, переключатели языка/темы, кнопки запуска, паузы, продолжения и остановки, журнал. Самопроверка GUI использует имитацию сеанса и не нажимает реальные кнопки Vortex.
+Самопроверка подаёт серию событий журнала и проверяет, что таблица, выделение и кнопки сохраняются. Язык выбирается кнопками RU / EN.
+
+Версия 0.2.2 проверена из исходников и как portable EXE: русский/английский, тёмная/светлая тема, минимальный размер, переключатели языка/темы, кнопки запуска, паузы, продолжения и остановки, журнал. Самопроверка GUI использует имитацию сеанса и не нажимает реальные кнопки Vortex.
 
 Отдельный интеграционный тест создаёт собственное WPF-окно `Vortex.exe` с заданными AutomationId. Проверенный путь привязан только к временному тестовому файлу. Настоящий PowerShell-движок вызывает его кнопки. Проверены первый клик, перемещение без дубля, пауза, следующий мод после продолжения, отсутствие нажатий после остановки и режим без нажатий. Настоящие моды не скачиваются, пользовательский Vortex не изменяется.
 
@@ -19,7 +21,9 @@ python tests/test_windows_integration.py
 
 ## English
 
-Version 0.2.1 was checked from source and as a portable EXE: Russian/English, dark/light themes, minimum window size, actual language/theme controls, start/pause/resume/stop buttons and the activity log. GUI self-test uses a simulated session.
+The self-test feeds a burst of log events and checks that the table, selection and controls are preserved. The RU / EN buttons select the language.
+
+Version 0.2.2 was checked from source and as a portable EXE: Russian/English, dark/light themes, minimum window size, actual language/theme controls, start/pause/resume/stop buttons and the activity log. GUI self-test uses a simulated session.
 
 The separate integration test creates its own temporary WPF `Vortex.exe` fixture with explicit AutomationIds. The executable path is pinned to that fixture. The real PowerShell engine invokes only the fixture's buttons. It verifies the first click, movement without duplication, pause, advancing after resume, no clicks after stop and check-only behavior. No real mods are downloaded and the user's Vortex is not modified.
 
