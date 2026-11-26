@@ -16,6 +16,9 @@ Portable-версия: один `.exe`, без установки и отдел�
 
 ## Использование
 
+Раздел «Схема работы» показывает последовательность Vortex → проверка окна → нажатие и содержит кнопку проверки без нажатий.
+
+
 1. Откройте Vortex и начните загрузку коллекции.
 2. При необходимости выберите `Vortex.exe`; по умолчанию используется единственное открытое окно Vortex.
 3. Кнопка «Проверить без нажатий» читает окно, ничего не нажимая.
@@ -76,6 +79,9 @@ A portable `.exe`, with no installer or separate Python requirement. Language, t
 ![Vortex Helper — English, light theme](docs/screenshots/light-en.png)
 
 ## Usage
+
+The Workflow section shows Vortex → dialog check → click and includes the check-without-clicking action.
+
 
 1. Open Vortex and start a collection download.
 2. Optionally select `Vortex.exe`; otherwise the single running Vortex window is detected.

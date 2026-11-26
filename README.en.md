@@ -12,6 +12,9 @@ A portable `.exe`, with no installer or separate Python requirement. Language, t
 
 ## Usage
 
+The Workflow section shows Vortex → dialog check → click and includes the check-without-clicking action.
+
+
 1. Open Vortex and start a collection download.
 2. Optionally select `Vortex.exe`; otherwise the single running Vortex window is detected.
 3. Check without clicking reads the dialog without invoking it.

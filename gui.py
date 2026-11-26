@@ -9,12 +9,12 @@ import tempfile
 import tkinter as tk
 from tkinter import filedialog
 
-from desktop_ui import DesktopApp, benchmark, button, card, capture_window, label, put_text, text_area
+from desktop_ui import DesktopApp, benchmark, button, card, capture_window, label, put_text, text_area,round_shape
 from helper_runtime import HelperSession
 
 WORDS = {
  'ru': dict(local='Локальное управление. Без доступа к аккаунту.', workspace='ПОМОЩНИК ЗАГРУЗКИ', light='Светлая тема', dark='Тёмная тема',
-    overview='Управление', activity='Журнал', help='Как это работает', title='Vortex Helper',
+    overview='Управление', activity='Журнал', help='Схема работы', title='Vortex Helper',
     subtitle='Один точный клик, когда меняется мод. Даже если кнопка перемещается.',
     idle='Готов к запуску', running='Помощник работает', paused='Пауза', checking='Проверка окна Vortex', stopped='Помощник остановлен', failed='Нужно ваше внимание',
     intro='Кнопка: Download manually.',
@@ -28,11 +28,13 @@ WORDS = {
     absent='Подходящего окна загрузки сейчас нет. Ничего не нажато.', duplicate='Уже работает другой экземпляр помощника.',
     timeout='Время ожидания истекло. Проверьте результат в Vortex.', target_event='Программа: {path}',
     error='Ошибка: {message}', ended='Сеанс завершён', safe='Нажатий по координатам нет. Premium, Skip и Cancel не используются.',
-    help_title='Справка',
+    help_title='Vortex Helper',flow_one='Vortex',flow_two='Проверка окна',flow_three='Нажатие',
+    step_one='Откройте загрузку коллекции в Vortex.',step_two='Проверьте доступ к кнопке без нажатий.',step_three='Запустите помощник. Новый мод — одно нажатие.',
+    guide_note='Страницы сайта, CAPTCHA и ошибки установки требуют отдельного действия.',
     help_body='1. Откройте Vortex и начните загрузку коллекции.\n\n2. Нажмите «Проверить без нажатий», чтобы проверить доступность нужного окна.\n\n3. Запустите помощник. Кнопка нажимается только после двух стабильных наблюдений одного мода и повторной проверки прямо перед нажатием.\n\n4. Остановите помощник после завершения. Его остановка по таймауту не означает, что все файлы скачались.\n\nСтраницы браузера, CAPTCHA, вход в аккаунт и ошибки установки требуют отдельного внимания. Помощник не изменяет файлы модов и не управляет учётной записью.\n\nПроверенные элементы интерфейса Vortex имеют английские названия. Переключение языка здесь меняет язык помощника.\n\nЖурнал этого окна хранится в памяти, настройки языка и темы — локально. Консольный помощник также ведёт свой журнал в папке TEMP.',
     demo='Пример работы · вымышленные данные'),
  'en': dict(local='Local controls. No account access.', workspace='DOWNLOAD ASSISTANT', light='Light theme', dark='Dark theme',
-    overview='Controls', activity='Activity', help='How it works', title='Vortex Helper',
+    overview='Controls', activity='Activity', help='Workflow', title='Vortex Helper',
     subtitle='One deliberate click when the mod changes. Even when the button moves.',
     idle='Ready when you are', running='Helper is running', paused='Paused', checking='Checking the Vortex window', stopped='Helper stopped', failed='Your attention is needed',
     intro='Target button: Download manually.',
@@ -46,7 +48,9 @@ WORDS = {
     absent='No eligible download dialog is currently visible. Nothing was clicked.', duplicate='Another helper instance is already running.',
     timeout='Idle timeout. Check the result in Vortex.', target_event='Application: {path}',
     error='Error: {message}', ended='Session ended', safe='No coordinate clicks. Premium, Skip and Cancel are never used.',
-    help_title='Help',
+    help_title='Vortex Helper',flow_one='Vortex',flow_two='Read dialog',flow_three='Click',
+    step_one='Open a collection download in Vortex.',step_two='Check button access without clicking.',step_three='Start the helper. One click for each new mod.',
+    guide_note='Website pages, CAPTCHA and installation errors need separate attention.',
     help_body='1. Open Vortex and start a collection download.\n\n2. Use Check without clicking to check whether the expected dialog is accessible.\n\n3. Start the helper. A button is invoked only after two stable observations of a mod and a fresh check immediately before the click.\n\n4. Stop the helper when finished. An idle timeout does not establish that every file downloaded.\n\nBrowser pages, CAPTCHA, account login and installation errors may still need your attention. The helper does not alter mod files or access your account.\n\nThe verified Vortex controls have English labels. The language selector here changes the helper language.\n\nThis window keeps its activity log in memory and saves language/theme settings locally. The console helper also keeps its own log in TEMP.',
     demo='Sample session · synthetic data'),
 }
@@ -69,12 +73,8 @@ class HelperApp(DesktopApp):
     def render(self):
         parent = self.shell('Vortex Helper', '', [self.t('overview'), self.t('activity'), self.t('help')])
         if self.nav == 2:
-            label(parent, self.t('help_title'), self.p, 23, True).pack(anchor='w', pady=(0, 20))
-            panel=card(parent,self.p); panel.pack(fill='both', expand=True)
-            put_text(text_area(panel,self.p,height=20,expand=True), self.t('help_body'))
+            self.render_guide(parent)
             return
-        label(parent, self.t('title'), self.p, 23, True).pack(anchor='w')
-        tk.Frame(parent,bg=self.p['bg'],height=16).pack()
         if self.nav == 0:
             hero=card(parent,self.p,padx=22,pady=14); hero.pack(fill='x',pady=(0,16))
             status=label(hero,'●  '+self.t(self.state_key),self.p,14,True)
@@ -109,6 +109,34 @@ class HelperApp(DesktopApp):
         self.tree=self.table(panel,[('time',self.t('time'),90),('event',self.t('event'),700)],heights=2 if self.nav==0 else 13)
         self.tree.bind('<<TreeviewSelect>>',self.select_activity)
         self.refresh_activity()
+
+    def render_guide(self,parent):
+        p=self.p
+        label(parent,self.t('help'),p,12,True).pack(anchor='w',pady=(0,18))
+        panel=card(parent,p,padx=22,pady=22);panel.pack(fill='x')
+        diagram=tk.Canvas(panel,height=135,bg=p['card'],highlightthickness=0);diagram.pack(fill='x');self.flow_diagram=diagram
+        def draw(_=None):
+            diagram.delete('all');width=diagram.winfo_width();cell=(width-48)/3
+            for index,key in enumerate(('flow_one','flow_two','flow_three')):
+                x=8+index*(cell+16)
+                round_shape(diagram,x,22,x+cell,110,16,fill=p['field'],outline='')
+                diagram.create_oval(x+16,38,x+44,66,fill=p['accent'],outline='')
+                diagram.create_text(x+30,52,text=str(index+1),fill=p['ink'],font=('Segoe UI',10,'bold'))
+                diagram.create_text(x+16,88,text=self.t(key),fill=p['text'],anchor='w',font=('Segoe UI',11,'bold'))
+                if index<2:diagram.create_line(x+cell+3,66,x+cell+13,66,fill=p['muted'],width=2,arrow='last')
+        diagram.bind('<Configure>',draw)
+        for index,key in enumerate(('step_one','step_two','step_three')):
+            row=tk.Frame(panel,bg=p['card']);row.pack(fill='x',pady=12)
+            label(row,str(index+1).zfill(2),p,12,True,muted=True).pack(side='left',padx=(0,18))
+            label(row,self.t(key),p,11,wraplength=680).pack(side='left')
+        controls=tk.Frame(panel,bg=p['card']);controls.pack(fill='x',pady=(18,0))
+        check=button(controls,self.t('check'),lambda:self.start(True),p,True)
+        check.configure(state='disabled' if self.busy else 'normal');check.pack(side='left')
+        if self.activity:
+            label(panel,self.event_text(self.activity[-1]),p,10,muted=True,wraplength=740).pack(anchor='w',pady=(18,0))
+        label(parent,self.t('guide_note'),p,10,muted=True,wraplength=840).pack(anchor='w',pady=20)
+        shortcuts=card(parent,p,padx=20,pady=16);shortcuts.pack(fill='x')
+        label(shortcuts,self.t('quiet'),p,11,True).pack(anchor='w')
 
     def browse(self):
         selected=filedialog.askopenfilename(parent=self.root,title=self.t('choose'),filetypes=[('Vortex','Vortex.exe')])
@@ -201,6 +229,9 @@ def self_test(artifacts):
                 checked.append(f'{language}/{theme}')
         for nav in (1,2,0):
             app.select_nav(nav); root.update()
+            if nav==2:
+                assert len(app.flow_diagram.find_all())>=14
+                capture_window(root,artifacts/'vortex-workflow.png')
         root.geometry('1000x740');root.update()
         for widget in (app.start_button,app.details,app.language_box,app.theme_button):
             assert widget.winfo_ismapped()
