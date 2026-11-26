@@ -1,9 +1,30 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot '..\Helper.Core.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '..\Helper.Messages.psm1') -Force
 $checks=0
 function Assert($condition,[string]$message) {
     if (!$condition) { throw $message }
     $script:checks++
+}
+$messageKeys=@('Title','Controls','Scope','Boundary','Target','Windows','STA','Open','Path','Absent',
+    'Detected','Duplicate','Started','Timeout','Paused','Resumed','Waiting','Same','Invoke','Clicked','Failed','Stopped')
+foreach ($messageKey in $messageKeys) {
+    $russian=Get-HelperMessage -Language ru -Key $messageKey
+    $english=Get-HelperMessage -Language en -Key $messageKey
+    Assert ([bool]$russian -and [bool]$english -and $russian -ne $english) ('Both translations: '+$messageKey)
+    Assert (($russian -f '1','2','3') -and ($english -f '1','2','3')) ('Message formatting: '+$messageKey)
+}
+$unicode=Get-ModIdentity @('Download mod','Тестовый мод','1/44') 'test'
+Assert ($unicode.Mod -eq 'Тестовый мод') 'Preserve Russian mod titles'
+foreach ($documentName in @('README.md','README.ru.md','README.en.md','VERIFICATION.md')) {
+    $document=Get-Content -LiteralPath (Join-Path $PSScriptRoot ('..\'+$documentName)) -Raw -Encoding UTF8
+    Assert ($document -notmatch [char]0xfffd) ('UTF-8 documentation: '+$documentName)
+    foreach ($match in [regex]::Matches($document,'\]\(([^)]+)\)')) {
+        $link=$match.Groups[1].Value
+        if ($link -notmatch '://' -and !$link.StartsWith('#')) {
+            Assert (Test-Path -LiteralPath (Join-Path $PSScriptRoot ('..\'+$link.Split('#')[0]))) ('Documentation link: '+$link)
+        }
+    }
 }
 $names=@('Download mod','Example Mod','by','Example Author','1/44','Free','Download one by one')
 $one=Get-ModIdentity -Names $names -Session '100:200'
