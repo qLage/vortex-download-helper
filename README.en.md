@@ -1,10 +1,12 @@
 # Vortex Helper
 
-[Русский](README.ru.md) · [Home](README.md) · Windows 10/11 x64
+[Русский](README.ru.md) · [Home](README.md) · Windows 10/11 x64 · [Portfolio case study](https://qlage.github.io/case-vortex-helper.html)
 
 ## Download and run
 
 **[Download VortexDownloadHelper.exe](https://github.com/qLage/vortex-download-helper/releases/latest/download/VortexDownloadHelper.exe)**
+
+[Release page](https://github.com/qLage/vortex-download-helper/releases/latest) · [SHA256SUMS.txt](https://github.com/qLage/vortex-download-helper/releases/latest/download/SHA256SUMS.txt)
 
 A portable `.exe`, with no installer or separate Python requirement. Language, theme and Vortex-path preferences live in `VortexDownloadHelper-data` beside the executable. The bundled Python/Tk runtime and control-channel files temporarily use TEMP and are removed on normal exit. No service, autostart entry, shortcut or installed-app registration is created.
 
@@ -14,13 +16,14 @@ A portable `.exe`, with no installer or separate Python requirement. Language, t
 
 The Workflow section shows Vortex → dialog check → click and includes the check-without-clicking action.
 
-
 1. Open Vortex and start a collection download.
 2. Optionally select `Vortex.exe`; otherwise the single running Vortex window is detected.
 3. Check without clicking reads the dialog without invoking it.
-4. Start the helper. Pause, resume and stop are available in the same window.
+4. Once the helper recognizes the current mod dialog, select **Start**. Pause, resume and stop are available in the same window.
 
 F8 stops; F9 toggles pause. Closing the window stops only the owned helper process, leaving Vortex running. Switching language also translates the activity log. Dark and light themes are available. The interface shows the current mod, collection position, click count and the latest 200 events.
+
+[Workflow screenshot](docs/screenshots/workflow.png)
 
 ## Button selection
 
@@ -39,6 +42,8 @@ For a stuck `Installing…`, inspect the Vortex log: downloading and installing 
 The source GUI requires Python 3.10+ with Tkinter. The engine uses Windows PowerShell 5.1.
 
 ```powershell
+git clone https://github.com/qLage/vortex-download-helper.git
+cd vortex-download-helper
 python gui.py
 powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\Vortex-download-helper.ps1 -CheckOnly -Language en
 powershell.exe -NoProfile -File .\tests\Test-Helper.ps1
@@ -54,6 +59,7 @@ python gui.py --self-test --artifacts gui-artifacts
 python -m venv .build-env
 .\.build-env\Scripts\python.exe -m pip install -r build-requirements.txt
 .\.build-env\Scripts\python.exe build_windows.py --output dist --work build
+.\.build-env\Scripts\python.exe verify_windows_package.py --directory dist
 ```
 
 Outputs are `dist/VortexDownloadHelper.exe` and `SHA256SUMS.txt`. No installer is created.

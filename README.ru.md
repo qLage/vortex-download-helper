@@ -1,10 +1,12 @@
 # Vortex Helper
 
-[English](README.en.md) · [Главная](README.md) · Windows 10/11 x64
+[English](README.en.md) · [Главная](README.md) · Windows 10/11 x64 · [Проект в портфолио](https://qlage.github.io/case-vortex-helper.html)
 
 ## Скачать и запустить
 
 **[Скачать VortexDownloadHelper.exe](https://github.com/qLage/vortex-download-helper/releases/latest/download/VortexDownloadHelper.exe)**
+
+[Страница релиза](https://github.com/qLage/vortex-download-helper/releases/latest) · [SHA256SUMS.txt](https://github.com/qLage/vortex-download-helper/releases/latest/download/SHA256SUMS.txt)
 
 Portable-версия: один `.exe`, без установки и отдельного Python. Настройки языка, темы и пути Vortex хранятся в `VortexDownloadHelper-data` рядом с программой. Временные файлы встроенного Python/Tk и канала управления создаются в TEMP и очищаются при штатном завершении. Программа не регистрирует службу, автозапуск, ярлыки или записи установленных приложений.
 
@@ -14,13 +16,14 @@ Portable-версия: один `.exe`, без установки и отдел�
 
 Раздел «Схема работы» показывает последовательность Vortex → проверка окна → нажатие и содержит кнопку проверки без нажатий.
 
-
 1. Откройте Vortex и начните загрузку коллекции.
 2. При необходимости выберите `Vortex.exe`; по умолчанию используется единственное открытое окно Vortex.
 3. Кнопка «Проверить без нажатий» читает окно, ничего не нажимая.
-4. Нажмите «Запустить». Пауза, продолжение и остановка доступны в этом же окне.
+4. Когда помощник распознает окно с текущим модом, нажмите «Запустить». Пауза, продолжение и остановка доступны в этом же окне.
 
 F8 останавливает помощник, F9 переключает паузу. Закрытие окна завершает созданный помощником процесс, сохраняя Vortex работающим. При смене языка журнал переводится; доступна тёмная и светлая тема. В интерфейсе отображаются текущий мод, позиция коллекции, число нажатий и журнал последних 200 событий.
+
+[Схема работы в интерфейсе](docs/screenshots/workflow.png)
 
 ## Как выбирается кнопка
 
@@ -39,6 +42,8 @@ F8 останавливает помощник, F9 переключает пау
 Для GUI из исходников нужен Python 3.10+ с Tkinter. Движок требует Windows PowerShell 5.1.
 
 ```powershell
+git clone https://github.com/qLage/vortex-download-helper.git
+cd vortex-download-helper
 python gui.py
 powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\Vortex-download-helper.ps1 -CheckOnly -Language ru
 powershell.exe -NoProfile -File .\tests\Test-Helper.ps1
@@ -54,6 +59,7 @@ python gui.py --self-test --artifacts gui-artifacts
 python -m venv .build-env
 .\.build-env\Scripts\python.exe -m pip install -r build-requirements.txt
 .\.build-env\Scripts\python.exe build_windows.py --output dist --work build
+.\.build-env\Scripts\python.exe verify_windows_package.py --directory dist
 ```
 
 Результат: `dist/VortexDownloadHelper.exe` и `SHA256SUMS.txt`. Установщик не создаётся.

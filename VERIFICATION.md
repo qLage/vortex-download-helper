@@ -2,6 +2,8 @@
 
 ## Русский
 
+[Релиз](https://github.com/qLage/vortex-download-helper/releases/latest) содержит portable EXE, SHA256SUMS.txt и результаты самопроверки в verification.json. Для сверки выполните `Get-FileHash .\VortexDownloadHelper.exe -Algorithm SHA256` в папке скачивания и сравните результат с SHA256SUMS.txt.
+
 Самопроверка подаёт серию событий журнала и проверяет, что таблица, выделение и кнопки сохраняются. Язык выбирается кнопками RU / EN.
 
 Версия 0.2.3 проверена из исходников и как portable EXE: русский/английский, тёмная/светлая тема, минимальный размер, переключатели языка/темы, кнопки запуска, паузы, продолжения и остановки, журнал. Самопроверка GUI использует имитацию сеанса и не нажимает реальные кнопки Vortex.
@@ -20,6 +22,8 @@ python tests/test_windows_integration.py
 Интеграционный тест требует интерактивной Windows-сессии, стандартного .NET Framework и свободного mutex помощника. Без `VORTEX_UI_TEST=1` он пропускается. После обновления Vortex повторно проверьте реальное окно через «Проверить без нажатий»: тестовый интерфейс не доказывает неизменность сторонней программы. Проверенные элементы Vortex 2.6.2 имеют английские названия.
 
 ## English
+
+The [release](https://github.com/qLage/vortex-download-helper/releases/latest) includes the portable EXE, SHA256SUMS.txt and the self-test results in verification.json. Run `Get-FileHash .\VortexDownloadHelper.exe -Algorithm SHA256` in your download folder and compare the output with SHA256SUMS.txt.
 
 The self-test feeds a burst of log events and checks that the table, selection and controls are preserved. The RU / EN buttons select the language.
 
