@@ -7,3 +7,10 @@
 .env.*
 Thumbs.db
 .DS_Store
+__pycache__/
+*.py[cod]
+build/
+dist/
+gui-artifacts/
+*.spec
+VortexDownloadHelper-data/

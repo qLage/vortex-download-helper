@@ -7,6 +7,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Identity, debounce, deduplication and parser checks
         shell: powershell
         run: ./tests/Test-Helper.ps1
+      - run: python -m unittest discover -s tests -v
+      - run: python gui.py --self-test --artifacts gui-artifacts

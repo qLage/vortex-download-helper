@@ -2,6 +2,8 @@
 [CmdletBinding()]
 param(
     [switch]$CheckOnly,
+    [switch]$JsonEvents,
+    [string]$ControlPath,
     [ValidateSet('ru','en')][string]$Language = 'ru',
     [string]$VortexPath,
     [ValidateRange(1,240)][int]$IdleMinutes = 20,
@@ -15,6 +17,29 @@ if ([Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
     throw (Message 'STA')
 }
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
+function Emit([string]$type, [hashtable]$data=@{}) {
+    if ($JsonEvents) {
+        $event=@{type=$type;time=[DateTime]::UtcNow.ToString('o');data=$data}
+        [Console]::Out.WriteLine((ConvertTo-Json -InputObject $event -Depth 4 -Compress))
+    }
+}
+$lastControl=''
+$stopRequested=$false
+function Read-Control {
+    if (!$ControlPath -or ![IO.File]::Exists($ControlPath)) { return }
+    $control=[IO.File]::ReadAllText($ControlPath)
+    if ($control.Length -gt 100) { throw 'Invalid control message size' }
+    if ($control -eq $script:lastControl) { return }
+    $script:lastControl=$control
+    $parts=$control.Trim().Split('|')
+    if ($parts.Count -ne 2) { return }
+    switch ($parts[1]) {
+        'stop' { $script:stopRequested=$true }
+        'pause' { $script:paused=$true; Emit 'paused' }
+        'resume' { $script:paused=$false; $script:idleSince=Get-Date; Emit 'running' }
+    }
+}
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type @'
@@ -34,6 +59,7 @@ if (!$VortexPath) {
 $expectedExe = (Resolve-Path -LiteralPath $VortexPath -ErrorAction Stop).ProviderPath
 if ([IO.Path]::GetFileName($expectedExe) -ine 'Vortex.exe') { throw (Message 'Path') }
 Write-Host ((Message 'Target') -f $expectedExe)
+Emit 'target' @{path=$expectedExe}
 $helperState = New-HelperState
 $paused = $false
 $pauseKeyHeld = $false
@@ -45,7 +71,7 @@ $logPath = Join-Path $env:TEMP 'Vortex-download-helper.log'
 function Say([string]$message) {
     if ($script:lastMessage -ne $message) {
         Write-Host ('[{0:HH:mm:ss}] {1}' -f (Get-Date), $message)
-        if (!$CheckOnly) { Add-Content -LiteralPath $logPath -Value ('[{0:yyyy-MM-dd HH:mm:ss}] {1}' -f (Get-Date), $message) -Encoding UTF8 }
+        if (!$CheckOnly -and !$JsonEvents) { Add-Content -LiteralPath $logPath -Value ('[{0:yyyy-MM-dd HH:mm:ss}] {1}' -f (Get-Date), $message) -Encoding UTF8 }
         $script:lastMessage = $message
     }
 }
@@ -85,29 +111,34 @@ Write-Host ''
 
 if ($CheckOnly) {
     $item = Read-DownloadDialog
-    if ($null -eq $item) { Write-Host (Message 'Absent') }
-    else { Write-Host ((Message 'Detected') -f $item.Progress,$item.Mod) }
+    if ($null -eq $item) { Write-Host (Message 'Absent'); Emit 'absent' }
+    else { Write-Host ((Message 'Detected') -f $item.Progress,$item.Mod); Emit 'detected' @{mod=$item.Mod;progress=$item.Progress} }
     exit
 }
 
 $mutex = New-Object System.Threading.Mutex($false, 'Local\CodexVortexDownloadHelper')
-if (!$mutex.WaitOne(0)) { Write-Host (Message 'Duplicate'); $mutex.Dispose(); exit }
+if (!$mutex.WaitOne(0)) { Write-Host (Message 'Duplicate'); Emit 'duplicate'; $mutex.Dispose(); exit 3 }
 try {
 Say (Message 'Started')
+Emit 'running'
 while ($true) {
+    Read-Control
+    if ($stopRequested) { break }
     if (!$paused -and ((Get-Date)-$idleSince).TotalMinutes -ge $IdleMinutes) {
         Say (Message 'Timeout')
+        Emit 'timeout'
         break
     }
     if ([VortexHelperKeys]::GetAsyncKeyState(0x77) -band 0x8000) { break }
     $pauseDown = [bool]([VortexHelperKeys]::GetAsyncKeyState(0x78) -band 0x8000)
-    if ($pauseDown -and !$pauseKeyHeld) { $paused = !$paused; $idleSince=Get-Date; Say $(if($paused){(Message 'Paused')}else{(Message 'Resumed')}) }
+    if ($pauseDown -and !$pauseKeyHeld) { $paused = !$paused; $idleSince=Get-Date; Say $(if($paused){(Message 'Paused')}else{(Message 'Resumed')}); Emit $(if($paused){'paused'}else{'running'}) }
     $pauseKeyHeld = $pauseDown
     if ($paused) { Start-Sleep -Milliseconds 250; continue }
     try {
         $item = Read-DownloadDialog
         if ($null -eq $item) {
             [void](Test-NewStableMod $helperState '')
+            if ($lastMessage -ne (Message 'Waiting')) { Emit 'waiting' }
             Say (Message 'Waiting')
         } elseif ($helperState.Seen.Contains($item.Key)) {
             [void](Test-NewStableMod $helperState '')
@@ -117,6 +148,8 @@ while ($true) {
                 # Re-resolve the current dialog and button immediately before invoking it.
                 $fresh = Read-DownloadDialog
                 if ($null -ne $fresh -and $fresh.Key -eq $item.Key) {
+                    Read-Control
+                    if ($stopRequested -or $paused) { continue }
                     $pattern = $null
                     if (!$fresh.Button.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
                         throw (Message 'Invoke')
@@ -125,6 +158,7 @@ while ($true) {
                     Confirm-HelperClick $helperState $fresh.Key
                     ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
                     $count++
+                    Emit 'clicked' @{count=$count;mod=$fresh.Mod;progress=$fresh.Progress}
                     Say ((Message 'Clicked') -f $count,$fresh.Progress,$fresh.Mod)
                     $idleSince=Get-Date
                 }
@@ -133,6 +167,7 @@ while ($true) {
     } catch [System.Windows.Automation.ElementNotAvailableException] {
         [void](Test-NewStableMod $helperState '')
     } catch {
+        Emit 'error' @{message=$_.Exception.Message}
         Write-Host ((Message 'Failed') -f $_.Exception.Message) -ForegroundColor Yellow
         break
     }
@@ -140,6 +175,7 @@ while ($true) {
 }
 Write-Host ((Message 'Stopped') -f $count)
 } finally {
+    Emit 'stopped' @{count=$count}
     Say ((Message 'Stopped') -f $count)
     $mutex.ReleaseMutex()
     $mutex.Dispose()
